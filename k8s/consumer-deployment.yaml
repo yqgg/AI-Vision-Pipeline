@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vision-consumer
+  labels:
+    app: vision-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vision-consumer
+  template:
+    metadata:
+      labels:
+        app: vision-consumer
+    spec:
+      containers:
+        - name: vision-consumer
+          image: vision-consumer:latest
+          imagePullPolicy: Never
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "host.minikube.internal:9092"
+            - name: POSTGRES_HOST
+              value: "host.minikube.internal"
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: "postgres"
+            - name: POSTGRES_DB
+              value: "detections_db"
+            - name: MLFLOW_TRACKING_URI
+              value: "http://host.minikube.internal:5001"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2"
