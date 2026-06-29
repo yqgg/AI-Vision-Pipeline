@@ -29,10 +29,10 @@ KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 KAFKA_TOPIC     = os.getenv("KAFKA_TOPIC", "raw-frames")
 PG_USER         = os.getenv("POSTGRES_USER", "postgres")
 PG_PASS         = os.getenv("POSTGRES_PASSWORD", "postgres")
-PG_HOST         = os.getenv("POSTGRES_HOST", "localhost")
+PG_HOST         = os.getenv("POSTGRES_HOST", "127.0.0.1")
 PG_PORT         = os.getenv("POSTGRES_PORT", "5432")
 PG_DB           = os.getenv("POSTGRES_DB", "detections_db")
-MLFLOW_URI      = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5001")
+MLFLOW_URI      = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5001")
 MODEL_PATH      = os.getenv("MODEL_PATH", "consumer/yolov5n.pt")
 PG_CONN_STR     = f"postgresql+psycopg2://{PG_USER}:{PG_PASS}@{PG_HOST}:{PG_PORT}/{PG_DB}"
 
@@ -52,6 +52,10 @@ mlflow.set_tracking_uri(MLFLOW_URI)
 mlflow.set_experiment("vision-inference-pipeline")
 
 
+# Create database engine once at module level
+engine = create_engine(PG_CONN_STR, pool_size=10, max_overflow=20)
+
+
 def run_inference(image_b64: str):
     """Decode base64 image, run YOLO, return list of detection dicts."""
     img_bytes = base64.b64decode(image_b64)
@@ -63,6 +67,7 @@ def run_inference(image_b64: str):
     latency_ms = (time.time() - start) * 1000
 
     detections = []
+    
     for *box, conf, cls in results.xyxy[0].tolist():
         x1, y1, x2, y2 = box
         detections.append({
@@ -82,11 +87,10 @@ def write_to_postgres(batch_df, batch_id):
     if batch_df.isEmpty():
         return
 
-    engine = create_engine(PG_CONN_STR)
     rows_written = 0
     total_latency = 0
 
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         for row in batch_df.collect():
             try:
                 msg = json.loads(row["value"])
@@ -122,7 +126,6 @@ def write_to_postgres(batch_df, batch_id):
                     })
                     rows_written += 1
 
-                conn.commit()
                 print(f"[Consumer] Batch {batch_id} | frame={frame_id} | "
                       f"detections={len(detections)} | latency={latency_ms:.1f}ms")
 
