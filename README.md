@@ -75,7 +75,7 @@ Key components:
 
 4. Verify PostgreSQL has the schema loaded:
    ```powershell
-   docker exec -it vision-pipeline-postgres psql -U <postgres-user> -d detections_db -c "\dt"
+   docker exec -it vision-pipeline-postgres-1 psql -U <postgres-user> -d detections_db -c "\dt"
    ```
    Expected output:
    - A table list containing `dim_class`, `dim_time`, `dim_source`, `detection_events`, and `detection_summary`.
